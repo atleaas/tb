@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="no" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TennisBro</title>
+  <!-- PC / Nettleser-fane -->
+  <link rel="icon" type="image/png" sizes="48x48" href="favicon.png">
+
+  <!-- iPhone / iPad (Startskjerm) -->
+  <link rel="apple-touch-icon" sizes="100x100" href="icon-100.png">
+
+  <!-- Android / Samsung (Startskjerm) -->
+  <link rel="icon" type="image/png" sizes="100x100" href="icon-100.png">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Flatpickr CSS & Dark theme -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+  <!-- Flatpickr JS & Norsk språk -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/no.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            court: {
+              DEFAULT: '#10b981',	// Emerald 500 (Hovedfargen på knappene)
+              dark: '#047857',		// Emerald 700 (Mørkere farge ved hover/trykk)
+              light: '#34d399',		// Emerald 400 (Lysere farge for effekter/rammer)
+              accent: '#a3e635'		// Lime 400 (Frisk aksentfarge/tennisball-tone)
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Visuell Ølkalkulator */
+    .beer-glass {
+      width: 60px;
+      height: 90px;
+      border: 3px solid #cbd5e1;
+      border-top: none;
+      border-radius: 0 0 12px 12px;
+      position: relative;
+      background: rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      margin: 0 auto;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+    .beer-liquid {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+      transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .beer-foam {
+      position: absolute;
+      top: -8px;
+      left: 0;
+      width: 100%;
+      height: 12px;
+      background: #ffffff;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-24 antialiased selection:bg-court selection:text-slate-950">
+
+  <!-- PASSORD MODAL -->
+  <div id="passwordModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+      <div class="w-14 h-14 bg-court/10 border border-court/30 text-court rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+        🎾
+      </div>
+      <h2 class="text-xl font-bold text-white mb-2">Adgangskontroll</h2>
+      <p class="text-slate-400 text-sm mb-6">Skriv inn passord for tilgang.</p>
+      <form onsubmit="handlePasswordSubmit(event)" class="space-y-4">
+        <input type="password" id="appPasswordInput" placeholder="Passord" required class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-court text-center text-lg">
+        <button type="submit" class="w-full py-3 bg-court hover:bg-court-dark text-slate-950 font-bold rounded-xl transition duration-200">
+          Logg inn
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- HOVEDINNHOLD CONTAINER -->
+  <div class="max-w-md mx-auto px-4 pt-4">
+
+    <!-- TOPP HEADER -->
+    <header class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">🎾</span>
+        <div>
+          <h1 class="text-lg font-bold leading-none uppercase text-white">Tennis<span class="text-emerald-400">Bro</span></h1>
+          <p class="text-xs text-slate-400 mt-1" id="playerNamesHeader">Laster spillere...</p>
+        </div>
+      </div>
+      <button onclick="alert('TennisBro v1.0\nUtviklet av Atle(t)\nFinansiert av Areca Invest AS\n\nHow Much is the Fish?')" class="p-1 text-slate-500 hover:text-slate-300 transition cursor-pointer" title="Om appen">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4"/>
+          <path d="M12 8h.01"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- LOADING INDIKATOR -->
+    <div id="loadingSpinner" class="py-12 text-center">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-court border-t-transparent"></div>
+      <p class="text-slate-400 text-sm mt-3">Henter data fra Bro Sheets...</p>
+    </div>
+
+    <!-- MAIN APP CONTENT -->
+    <main id="appContent" class="hidden">
+
+      <!-- FANE 1: REGISTRER -->
+      <section id="tab-register" class="space-y-4">
+
+      <!-- Pågående match banner -->
+        <div id="ongoingBanner" class="hidden bg-emerald-950/80 border border-court/50 rounded-2xl p-4 text-emerald-100 space-y-3 shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-court bg-court/10 px-2 py-0.5 rounded-md border border-court/30">Uferdig match funnet</span>
+            <span class="text-xs text-emerald-400" id="ongoingDateText"></span>
+          </div>
+          <div>
+            <p class="text-sm font-bold text-white">Sist lagrede stilling:</p>
+            <p class="text-xs text-emerald-300 font-mono mt-0.5" id="ongoingScorePreview">-</p>
+            <!-- NYTT ELEMENT DERSOM DET FINNES NOTAT -->
+            <p class="text-xs text-slate-300 italic mt-1.5 flex items-center gap-1 hidden" id="ongoingNotesPreview"></p>
+          </div>
+          <button onclick="loadOngoingMatch()" class="w-full py-2.5 bg-court text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl shadow hover:bg-court-light active:scale-[0.98] transition flex items-center justify-center space-x-2 cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" x2="12" y1="15" y2="3"/>
+            </svg>
+            <span>Fyll inn alt fra forrige økt</span>
+          </button>
+        </div>
+
+        <!-- Dato-velger (Flatpickr) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+          <label for="sessionDate" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Dato for økten</label>
+          <input type="text" id="sessionDate" class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-court cursor-pointer" readonly>
+        </div>
+
+        <!-- POENGREGISTRERING -->
+        <div id="setsContainer" class="space-y-4"></div>
+
+        <!-- FORSENTKOMMING -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Forsentkomming (minutter i dag)</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label id="labelLateP1" class="block text-xs text-slate-300 mb-1 truncate">Spiller 1</label>
+              <input type="number" id="lateP1" min="0" value="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-center font-semibold text-white focus:outline-none focus:border-court">
+            </div>
+            <div>
+              <label id="labelLateP2" class="block text-xs text-slate-300 mb-1 truncate">Spiller 2</label>
+              <input type="number" id="lateP2" min="0" value="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-center font-semibold text-white focus:outline-none focus:border-court">
+            </div>
+          </div>
+        </div>
+
+        <!-- NOTATER -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <label for="sessionNotes" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Notater (f.eks. hvem som server neste uke)</label>
+          <textarea id="sessionNotes" rows="2" placeholder="Skriv notat her..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-court"></textarea>
+        </div>
+
+        <!-- LAGRE-KNAPP -->
+        <button id="saveBtn" onclick="saveSession()" class="w-full py-4 bg-court hover:bg-court-dark text-slate-950 font-extrabold text-base rounded-2xl shadow-lg transition active:scale-[0.98] flex items-center justify-center space-x-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>Lagre dagens økt</span>
+        </button>
+
+      </section>
+
+      <!-- FANE 2: HISTORIKK -->
+      <section id="tab-history" class="hidden space-y-4">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Kampoversikt</h2>
+        <div id="historyList" class="space-y-3"></div>
+      </section>
+
+      <!-- FANE 3: STATISTIKK -->
+      <section id="tab-stats" class="hidden space-y-6">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+          <label for="seasonSelect" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Velg Sesong</label>
+          <select id="seasonSelect" onchange="renderStats()" class="bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:border-court"></select>
+        </div>
+
+        <div id="statsContent" class="space-y-6">
+          
+          <!-- Øktoversikt -->
+          <div class="grid grid-cols-3 gap-3" id="sessionOverviewContainer">
+            <!-- Fylles dynamisk fra renderStats() -->
+          </div>
+          
+          <!-- Ranking & Poeng tabell... -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-hidden">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Ranking & Poeng</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead>
+                  <tr class="border-b border-slate-800 text-slate-400 text-xs">
+                    <th class="pb-2">Spiller</th>
+                    <th class="pb-2 text-center">Win/Total</th>
+                    <th class="pb-2 text-center">Win%</th>
+                    <th class="pb-2 text-center">Sets</th>
+                    <th class="pb-2 text-center">Games</th>
+                    <th class="pb-2 text-right">Poeng</th>
+                  </tr>
+                </thead>
+                <tbody id="rankingTableBody" class="divide-y divide-slate-800/60 font-medium"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clutch-statistikk</h3>
+            <div class="grid grid-cols-2 gap-3" id="clutchStatsContainer"></div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Formkurve (Poeng)</h3>
+            <div class="h-56 relative"><canvas id="formChart"></canvas></div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Forsentkomming per måned (Minutter)</h3>
+            <div class="h-56 relative"><canvas id="lateChart"></canvas></div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+            <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ølfond</h3>
+            <div id="beerFundDetails" class="grid grid-cols-2 gap-3 text-sm"></div>
+            <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+              <div>
+                <p class="text-xs text-slate-400">Disponibelt</p>
+                <p class="text-lg font-bold text-white" id="beerCountText">0 øl</p>
+                <p class="text-xs text-slate-500" id="beerRemainderText">0 kr til neste øl</p>
+              </div>
+              <div class="beer-glass">
+                <div id="beerLiquid" class="beer-liquid" style="height: 0%;">
+                  <div class="beer-foam"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="noStatsMessage" class="hidden py-12 text-center text-slate-500 text-sm">
+          Ingen data for denne sesongen.
+        </div>
+      </section>
+
+      <!-- FANE 4: PROFILER -->
+      <section id="tab-profiles" class="hidden space-y-6">
+        <div id="profilesContainer" class="space-y-6"></div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- BUNN NAVIGASJON -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 z-40">
+    <div class="max-w-md mx-auto grid grid-cols-4 h-16">
+      <button onclick="switchTab('register')" id="nav-register" class="flex flex-col items-center justify-center space-y-1 text-court font-bold transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+        <span class="text-[11px]">Registrer</span>
+      </button>
+      
+      <button onclick="switchTab('history')" id="nav-history" class="flex flex-col items-center justify-center space-y-1 text-slate-400 hover:text-slate-200 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+          <path d="M12 7v5l4 2"/>
+        </svg>
+        <span class="text-[11px]">Historikk</span>
+      </button>
+      
+      <button onclick="switchTab('stats')" id="nav-stats" class="flex flex-col items-center justify-center space-y-1 text-slate-400 hover:text-slate-200 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" x2="18" y1="20" y2="10"/>
+          <line x1="12" x2="12" y1="20" y2="4"/>
+          <line x1="6" x2="6" y1="20" y2="16"/>
+        </svg>
+        <span class="text-[11px]">Statistikk</span>
+      </button>
+      
+      <button onclick="switchTab('profiles')" id="nav-profiles" class="flex flex-col items-center justify-center space-y-1 text-slate-400 hover:text-slate-200 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <span class="text-[11px]">Spillere</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- JAVASCRIPT LOGIKK -->
+  <script>
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzhwXFhp7HS0zZrY--W-K_TYxUsKlotQtPnPmj44bnoPZi_8TodL83-BB2LPgIqgr9U/exec';
+
+    let appData = {
+      profiles: {},
+      ongoingMatches: [],
+      allSessions: [],
+      allMatches: []
+    };
+
+    let activeMatchId = null;
+    let fpPicker = null;
+
+    let scoreState = {
+      set1: { p1: 0, p2: 0, tb1: 0, tb2: 0 },
+      set2: { p1: 0, p2: 0, tb1: 0, tb2: 0 },
+      set3: { p1: 0, p2: 0, tb1: 0, tb2: 0 }
+    };
+
+    let chartFormInstance = null;
+    let chartLateInstance = null;
+
+    function getLocalDate() {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fpPicker = flatpickr("#sessionDate", {
+        locale: "no",
+        dateFormat: "Y-m-d",
+        altInput: true,
+        altFormat: "d.m.Y",
+        defaultDate: getLocalDate(),
+        disableMobile: "true"
+      });
+
+      checkPasswordAndInit();
+    });
+
+    function formatDriveImageUrl(url) {
+      if (!url) return 'https://via.placeholder.com/100?text=Tennis';
+      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
+      }
+      return url;
+    }
+
+    function parseNotesAndState(rawNotes) {
+      if (!rawNotes) return { userNotes: '', state: null };
+      const match = rawNotes.match(/^\[STATE:(.*?)\](?:\n(.*))?$/s);
+      if (match) {
+        try {
+          return { state: JSON.parse(match[1]), userNotes: match[2] || '' };
+        } catch (e) {}
+      }
+      return { userNotes: rawNotes, state: null };
+    }
+
+    function checkPasswordAndInit() {
+      const pass = localStorage.getItem('tennis_app_password');
+      if (!pass) {
+        document.getElementById('passwordModal').classList.remove('hidden');
+      } else {
+        fetchData();
+      }
+    }
+
+    function handlePasswordSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('appPasswordInput').value.trim();
+      if (input) {
+        localStorage.setItem('tennis_app_password', input);
+        document.getElementById('passwordModal').classList.add('hidden');
+        fetchData();
+      }
+    }
+
+    function handleUnauthorized() {
+      localStorage.removeItem('tennis_app_password');
+      alert("Feil passord eller ikke autorisert. Vennligst prøv igjen.");
+      document.getElementById('passwordModal').classList.remove('hidden');
+      document.getElementById('appContent').classList.add('hidden');
+      document.getElementById('loadingSpinner').classList.add('hidden');
+    }
+
+    function getProfilesList() {
+      if (!appData.profiles) return [{ name: 'Spiller 1' }, { name: 'Spiller 2' }];
+      const p1 = appData.profiles["PLAYER_1"] || { name: 'Spiller 1' };
+      const p2 = appData.profiles["PLAYER_2"] || { name: 'Spiller 2' };
+      return [p1, p2];
+    }
+
+    async function fetchData() {
+      const pass = localStorage.getItem('tennis_app_password');
+      if (!pass) return;
+
+      document.getElementById('loadingSpinner').classList.remove('hidden');
+      document.getElementById('appContent').classList.add('hidden');
+
+      try {
+        const response = await fetch(`${SCRIPT_URL}?password=${encodeURIComponent(pass)}`);
+        const textData = await response.text();
+
+        if (textData.includes("Unauthorized")) {
+          handleUnauthorized();
+          return;
+        }
+
+        appData = JSON.parse(textData);
+
+        appData.allMatches = Array.isArray(appData.allMatches) ? appData.allMatches : [];
+        appData.allSessions = Array.isArray(appData.allSessions) ? appData.allSessions : [];
+        appData.ongoingMatches = Array.isArray(appData.ongoingMatches) ? appData.ongoingMatches : [];
+
+        initAppUI();
+      } catch (err) {
+        console.error("Feil ved henting av data:", err);
+        alert("Kunne ikke hente data fra Bro Sheets.");
+      } finally {
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('appContent').classList.remove('hidden');
+      }
+    }
+
+    function initAppUI() {
+      updateHeaderNames();
+      setupRegistrationTab();
+      renderHistory();
+      setupSeasonDropdown();
+      renderStats();
+      renderProfiles();
+    }
+
+    function updateHeaderNames() {
+      const profiles = getProfilesList();
+      const p1 = profiles[0].name || 'Spiller 1';
+      const p2 = profiles[1].name || 'Spiller 2';
+      document.getElementById('playerNamesHeader').textContent = `${p1} vs ${p2}`;
+      document.getElementById('labelLateP1').textContent = p1;
+      document.getElementById('labelLateP2').textContent = p2;
+    }
+
+    function switchTab(tabName) {
+      ['register', 'history', 'stats', 'profiles'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        const navBtn = document.getElementById(`nav-${t}`);
+        navBtn.classList.remove('text-court', 'font-bold');
+        navBtn.classList.add('text-slate-400');
+      });
+
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+      const activeNav = document.getElementById(`nav-${tabName}`);
+      activeNav.classList.add('text-court', 'font-bold');
+      activeNav.classList.remove('text-slate-400');
+
+      if (tabName === 'stats') {
+        renderStats();
+      }
+    }
+
+    function setupRegistrationTab() {
+      const ongoing = appData.ongoingMatches && appData.ongoingMatches.length > 0 ? appData.ongoingMatches[0] : null;
+      const banner = document.getElementById('ongoingBanner');
+
+      if (ongoing) {
+        banner.classList.remove('hidden');
+        
+        const parsed = parseNotesAndState(ongoing.notes);
+        
+        if (ongoing.date) {
+          const d = new Date(ongoing.date);
+          document.getElementById('ongoingDateText').textContent = !isNaN(d) ? d.toLocaleDateString('nb-NO') : '';
+        }
+
+        if (parsed.state) {
+          const s = parsed.state;
+          document.getElementById('ongoingScorePreview').textContent = `Sett 1 (${s.set1.p1}-${s.set1.p2}), Sett 2 (${s.set2.p1}-${s.set2.p2}), Sett 3 (${s.set3.p1}-${s.set3.p2})`;
+        } else {
+          document.getElementById('ongoingScorePreview').textContent = `Totalt games: ${ongoing.playerAGames} - ${ongoing.playerBGames}`;
+        }
+
+        // --- OPPDATERT NOTAT-VISNING I BANNERET MED SVG---
+        const notesPreview = document.getElementById('ongoingNotesPreview');
+        if (notesPreview) {
+          if (parsed.userNotes && parsed.userNotes.trim() !== '') {
+          notesPreview.innerHTML = `
+            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            <span>"${parsed.userNotes}"</span>
+          `;
+          notesPreview.classList.remove('hidden');
+        } else {
+          notesPreview.innerHTML = '';
+          notesPreview.classList.add('hidden');
+        }
+      }
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      renderSetInputs();
+    }
+
+    function loadOngoingMatch() {
+      const ongoing = appData.ongoingMatches[0];
+      if (!ongoing) return;
+
+      activeMatchId = ongoing.matchId;
+
+      if (fpPicker) {
+        fpPicker.setDate(getLocalDate());
+      }
+
+      const parsed = parseNotesAndState(ongoing.notes);
+      
+      if (parsed.state) {
+        scoreState = parsed.state;
+      }
+
+      // FJERNET: document.getElementById('sessionNotes').value = parsed.userNotes;
+      
+      document.getElementById('lateP1').value = 0;
+      document.getElementById('lateP2').value = 0;
+
+      renderSetInputs();
+      alert("Stilling fra forrige uferdige match er hentet inn!");
+    }
+
+    function isSetComplete(p1, p2) {
+      if ((p1 === 6 && p2 <= 4) || (p2 === 6 && p1 <= 4)) return true;
+      if ((p1 === 7 && p2 === 5) || (p2 === 7 && p1 === 5)) return true;
+      if ((p1 === 7 && p2 === 6) || (p2 === 7 && p1 === 6)) return true;
+      return false;
+    }
+
+    function getSetWinner(p1, p2) {
+      if (!isSetComplete(p1, p2)) return null;
+      return p1 > p2 ? 1 : 2;
+    }
+
+    function renderSetInputs() {
+      const container = document.getElementById('setsContainer');
+      container.innerHTML = '';
+
+      const profiles = getProfilesList();
+      const name1 = profiles[0].name;
+      const name2 = profiles[1].name;
+
+      const w1 = getSetWinner(scoreState.set1.p1, scoreState.set1.p2);
+      const w2 = getSetWinner(scoreState.set2.p1, scoreState.set2.p2);
+      const matchIsOver = (w1 !== null && w1 === w2);
+
+      [1, 2, 3].forEach(setNum => {
+        const setKey = `set${setNum}`;
+        const sData = scoreState[setKey];
+        const isSet3Disabled = (setNum === 3 && matchIsOver);
+        const setComplete = isSetComplete(sData.p1, sData.p2);
+
+        const p1PlusDisabled = isSet3Disabled || setComplete || (sData.p1 === 6 && sData.p2 < 5);
+        const p2PlusDisabled = isSet3Disabled || setComplete || (sData.p2 === 6 && sData.p1 < 5);
+
+        const isTiebreak = (sData.p1 === 6 && sData.p2 === 6) || (sData.p1 === 7 && sData.p2 === 6) || (sData.p1 === 6 && sData.p2 === 7);
+
+        const card = document.createElement('div');
+        card.className = `bg-slate-900 border ${isSet3Disabled ? 'border-slate-800/40 opacity-50' : 'border-slate-800'} rounded-2xl p-4 transition-all`;
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-extrabold uppercase tracking-wider ${setComplete ? 'text-court' : 'text-slate-400'}">
+              Sett ${setNum} ${setComplete ? '✓ Fullført' : ''} ${isSet3Disabled ? '(Ikke nødvendig)' : ''}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between py-2 border-b border-slate-800/60">
+            <span class="text-sm font-semibold text-slate-200 truncate max-w-[120px]">${name1}</span>
+            <div class="flex items-center space-x-3">
+              <button onclick="updateGames('${setKey}', 'p1', -1)" class="w-11 h-11 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xl rounded-xl flex items-center justify-center active:scale-95 transition shadow">-</button>
+              <span class="text-2xl font-black w-8 text-center text-white">${sData.p1}</span>
+              <button onclick="updateGames('${setKey}', 'p1', 1)" ${p1PlusDisabled ? 'disabled' : ''} class="w-11 h-11 bg-court hover:bg-court-dark disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-bold text-xl rounded-xl flex items-center justify-center active:scale-95 transition shadow">+</button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between py-2">
+            <span class="text-sm font-semibold text-slate-200 truncate max-w-[120px]">${name2}</span>
+            <div class="flex items-center space-x-3">
+              <button onclick="updateGames('${setKey}', 'p2', -1)" class="w-11 h-11 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xl rounded-xl flex items-center justify-center active:scale-95 transition shadow">-</button>
+              <span class="text-2xl font-black w-8 text-center text-white">${sData.p2}</span>
+              <button onclick="updateGames('${setKey}', 'p2', 1)" ${p2PlusDisabled ? 'disabled' : ''} class="w-11 h-11 bg-court hover:bg-court-dark disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-bold text-xl rounded-xl flex items-center justify-center active:scale-95 transition shadow">+</button>
+            </div>
+          </div>
+
+          ${isTiebreak ? `
+            <div class="mt-4 pt-3 border-t border-slate-800 bg-slate-950/50 p-3 rounded-xl space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-court uppercase tracking-wider">Tiebreak Poeng</span>
+                <span class="text-[10px] text-slate-400">Først til 7 (må lede med 2)</span>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-300">${name1}</span>
+                <div class="flex items-center space-x-2">
+                  <button onclick="updateTiebreak('${setKey}', 'tb1', -1)" class="w-8 h-8 bg-slate-800 text-white font-bold rounded-lg flex items-center justify-center active:scale-95">-</button>
+                  <span class="font-bold text-base w-6 text-center">${sData.tb1}</span>
+                  <button onclick="updateTiebreak('${setKey}', 'tb1', 1)" class="w-8 h-8 bg-court text-slate-950 font-bold rounded-lg flex items-center justify-center active:scale-95">+</button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-300">${name2}</span>
+                <div class="flex items-center space-x-2">
+                  <button onclick="updateTiebreak('${setKey}', 'tb2', -1)" class="w-8 h-8 bg-slate-800 text-white font-bold rounded-lg flex items-center justify-center active:scale-95">-</button>
+                  <span class="font-bold text-base w-6 text-center">${sData.tb2}</span>
+                  <button onclick="updateTiebreak('${setKey}', 'tb2', 1)" class="w-8 h-8 bg-court text-slate-950 font-bold rounded-lg flex items-center justify-center active:scale-95">+</button>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function updateGames(setKey, playerKey, delta) {
+      const s = scoreState[setKey];
+      const pKey = playerKey;
+      const oKey = playerKey === 'p1' ? 'p2' : 'p1';
+      let cur = s[pKey];
+      let oth = s[oKey];
+
+      if (delta > 0) {
+        if (cur === 6 && oth === 5) {
+          s[pKey] = 7;
+        } else if (cur < 6) {
+          if (oth === 7) return;
+          s[pKey]++;
+        }
+      } else if (delta < 0) {
+        s[pKey] = Math.max(0, cur - 1);
+      }
+
+      renderSetInputs();
+    }
+
+    function updateTiebreak(setKey, tbPlayerKey, delta) {
+      const current = scoreState[setKey][tbPlayerKey];
+      scoreState[setKey][tbPlayerKey] = Math.max(0, current + delta);
+
+      const tb1 = scoreState[setKey].tb1;
+      const tb2 = scoreState[setKey].tb2;
+
+      if ((tb1 >= 7 || tb2 >= 7) && Math.abs(tb1 - tb2) >= 2) {
+        if (tb1 > tb2) {
+          scoreState[setKey].p1 = 7;
+          scoreState[setKey].p2 = 6;
+        } else {
+          scoreState[setKey].p1 = 6;
+          scoreState[setKey].p2 = 7;
+        }
+      }
+
+      renderSetInputs();
+    }
+
+    async function saveSession() {
+      const pass = localStorage.getItem('tennis_app_password');
+      if (!pass) return;
+
+      const saveBtn = document.getElementById('saveBtn');
+      const originalText = saveBtn.innerHTML;
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `
+        <svg class="animate-spin h-5 w-5 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Lagrer... Vennligst vent</span>
+      `;
+
+      const sessionDate = document.getElementById('sessionDate').value;
+
+      const w1 = getSetWinner(scoreState.set1.p1, scoreState.set1.p2);
+      const w2 = getSetWinner(scoreState.set2.p1, scoreState.set2.p2);
+      const w3 = getSetWinner(scoreState.set3.p1, scoreState.set3.p2);
+
+      let winner = 0;
+      let status = "Ongoing";
+
+      let p1Sets = (w1 === 1 ? 1 : 0) + (w2 === 1 ? 1 : 0) + (w3 === 1 ? 1 : 0);
+      let p2Sets = (w1 === 2 ? 1 : 0) + (w2 === 2 ? 1 : 0) + (w3 === 2 ? 1 : 0);
+
+      if (p1Sets >= 2) {
+        winner = 1;
+        status = "Finished";
+      } else if (p2Sets >= 2) {
+        winner = 2;
+        status = "Finished";
+      }
+
+      const playerAGames = scoreState.set1.p1 + scoreState.set2.p1 + scoreState.set3.p1;
+      const playerBGames = scoreState.set1.p2 + scoreState.set2.p2 + scoreState.set3.p2;
+
+      const lateA = parseInt(document.getElementById('lateP1').value) || 0;
+      const lateB = parseInt(document.getElementById('lateP2').value) || 0;
+
+      const matchId = activeMatchId || ("MATCH-" + Date.now());
+
+      const userNotesRaw = document.getElementById('sessionNotes').value.trim();
+      const stateMeta = `[STATE:${JSON.stringify(scoreState)}]`;
+      const combinedNotes = userNotesRaw ? `${stateMeta}\n${userNotesRaw}` : stateMeta;
+
+      const payload = {
+        action: 'save_session',
+        password: pass,
+        matchId: matchId,
+        date: sessionDate,
+        playerAGames: playerAGames,
+        playerBGames: playerBGames,
+        playerALateMinutes: lateA,
+        playerBLateMinutes: lateB,
+        status: status,
+        notes: combinedNotes,
+        winner: winner,
+        s1_playerA: scoreState.set1.p1,
+        s1_playerB: scoreState.set1.p2,
+        s1_tb_playerA: scoreState.set1.tb1,
+        s1_tb_playerB: scoreState.set1.tb2,
+        s2_playerA: scoreState.set2.p1,
+        s2_playerB: scoreState.set2.p2,
+        s2_tb_playerA: scoreState.set2.tb1,
+        s2_tb_playerB: scoreState.set2.tb2,
+        s3_playerA: scoreState.set3.p1,
+        s3_playerB: scoreState.set3.p2,
+        s3_tb_playerA: scoreState.set3.tb1,
+        s3_tb_playerB: scoreState.set3.tb2,
+        totalFinePlayerA: lateA * 10,
+        totalFinePlayerB: lateB * 10
+      };
+
+      try {
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        const text = await response.text();
+
+        if (text.includes("Unauthorized")) {
+          handleUnauthorized();
+          return;
+        }
+
+        alert("Dagens økt er lagret i Bro Sheets!");
+        location.reload();
+      } catch (err) {
+        console.error("Feil ved lagring:", err);
+        alert("Feil oppstod under lagring.");
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+      }
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      if (!list) return;
+      list.innerHTML = '';
+
+      if (!appData.allMatches || appData.allMatches.length === 0) {
+        list.innerHTML = `<div class="py-12 text-center text-slate-500 text-sm">Ingen kamper spilt ennå</div>`;
+        return;
+      }
+
+      const profiles = getProfilesList();
+      const name1 = profiles[0].name;
+      const name2 = profiles[1].name;
+
+      const sorted = [...appData.allMatches].sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
+
+      const groupedByYear = {};
+      sorted.forEach(match => {
+        const d = new Date(match.endDate);
+        const year = !isNaN(d) ? d.getFullYear() : 'Ukjent år';
+        if (!groupedByYear[year]) groupedByYear[year] = [];
+        groupedByYear[year].push(match);
+      });
+
+      const years = Object.keys(groupedByYear).sort((a, b) => b - a);
+
+      years.forEach((year, index) => {
+        const yearMatches = groupedByYear[year];
+        const isLatestYear = index === 0;
+
+        const yearContainer = document.createElement('div');
+        yearContainer.className = "bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 space-y-3";
+
+        const yearHeader = document.createElement('button');
+        yearHeader.type = "button";
+        yearHeader.onclick = () => toggleYear(year);
+        yearHeader.className = "w-full flex items-center justify-between text-left focus:outline-none";
+        yearHeader.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">${year}</span>
+            <span class="text-xs text-slate-500">(${yearMatches.length} ${yearMatches.length === 1 ? 'kamp' : 'kamper'})</span>
+          </div>
+          <svg id="arrow-${year}" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 transition-transform duration-200 ${isLatestYear ? 'rotate-180' : ''}">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        `;
+
+        const matchesDiv = document.createElement('div');
+        matchesDiv.id = `year-${year}`;
+        matchesDiv.className = `divide-y divide-slate-800/60 ${isLatestYear ? '' : 'hidden'}`;
+
+        yearMatches.forEach(match => {
+          const d = new Date(match.endDate);
+          const formattedDate = !isNaN(d) ? d.toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : match.endDate;
+
+          let setScores = [];
+          if (match.s1_playerA !== undefined) {
+            let s1 = `${match.s1_playerA}-${match.s1_playerB}`;
+            if (match.s1_playerA === 7 && match.s1_playerB === 6) s1 += `(${match.s1_tb_playerB || 0})`;
+            if (match.s1_playerB === 7 && match.s1_playerA === 6) s1 += `(${match.s1_tb_playerA || 0})`;
+            setScores.push(s1);
+          }
+          if (match.s2_playerA > 0 || match.s2_playerB > 0) {
+            let s2 = `${match.s2_playerA}-${match.s2_playerB}`;
+            if (match.s2_playerA === 7 && match.s2_playerB === 6) s2 += `(${match.s2_tb_playerB || 0})`;
+            if (match.s2_playerB === 7 && match.s2_playerA === 6) s2 += `(${match.s2_tb_playerA || 0})`;
+            setScores.push(s2);
+          }
+          if (match.s3_playerA > 0 || match.s3_playerB > 0) {
+            let s3 = `${match.s3_playerA}-${match.s3_playerB}`;
+            if (match.s3_playerA === 7 && match.s3_playerB === 6) s3 += `(${match.s3_tb_playerB || 0})`;
+            if (match.s3_playerB === 7 && match.s3_playerA === 6) s3 += `(${match.s3_tb_playerA || 0})`;
+            setScores.push(s3);
+          }
+
+          const winnerName = match.winner === 1 ? name1 : (match.winner === 2 ? name2 : 'Ukjent');
+          const winnerColor = match.winner === 1 ? 'text-purple-400' : (match.winner === 2 ? 'text-emerald-400' : 'text-slate-400');
+
+          const card = document.createElement('div');
+          card.className = "py-3 first:pt-2 last:pb-0 space-y-1";
+          card.innerHTML = `
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span class="flex items-center space-x-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500">
+                  <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                  <line x1="16" x2="16" y1="2" y2="6"/>
+                  <line x1="8" x2="8" y1="2" y2="6"/>
+                  <line x1="3" x2="21" y1="10" y2="10"/>
+                </svg>
+                <span>${formattedDate}</span>
+              </span>
+              <span class="font-bold ${winnerColor}">Vinner: ${winnerName}</span>
+            </div>
+            <div class="flex justify-end pt-0.5">
+              <span class="text-slate-300 font-mono text-xs">${setScores.join(', ')}</span>
+            </div>
+          `;
+          matchesDiv.appendChild(card);
+        });
+
+        yearContainer.appendChild(yearHeader);
+        yearContainer.appendChild(matchesDiv);
+        list.appendChild(yearContainer);
+      });
+    }
+
+    // Hjelpefunksjon for å åpne/lukke årstallene
+    function toggleYear(year) {
+      const container = document.getElementById(`year-${year}`);
+      const arrow = document.getElementById(`arrow-${year}`);
+      
+      if (container && arrow) {
+        container.classList.toggle('hidden');
+        arrow.classList.toggle('rotate-180');
+      }
+    }
+
+    function setupSeasonDropdown() {
+      const select = document.getElementById('seasonSelect');
+      select.innerHTML = '<option value="ALL">Alle sesonger</option>';
+
+      const currentYear = new Date().getFullYear().toString();
+      const years = new Set();
+
+      appData.allMatches.forEach(m => {
+        if (m.endDate) {
+          const yr = new Date(m.endDate).getFullYear();
+          if (!isNaN(yr)) years.add(yr.toString());
+        }
+      });
+
+      years.add(currentYear);
+
+      const sortedYears = Array.from(years).sort((a, b) => b - a);
+      sortedYears.forEach(yr => {
+        const opt = document.createElement('option');
+        opt.value = yr;
+        opt.textContent = yr;
+        if (yr === currentYear) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function renderStats() {
+      const season = document.getElementById('seasonSelect').value;
+      const statsContent = document.getElementById('statsContent');
+      const noStatsMsg = document.getElementById('noStatsMessage');
+
+      // 1. Filtrer fullførte matcher
+      const filteredMatches = appData.allMatches.filter(m => {
+        if (!m.endDate) return false;
+        if (season === 'ALL') return true;
+        return new Date(m.endDate).getFullYear().toString() === season;
+      });
+
+      // 2. Filtrer ALLE registrerte økter (inkl. uavsluttede)
+      const filteredSessions = appData.allSessions.filter(s => {
+        if (!s.date) return false;
+        if (season === 'ALL') return true;
+        return new Date(s.date).getFullYear().toString() === season;
+      });
+
+      if (filteredSessions.length === 0 && filteredMatches.length === 0) {
+        statsContent.classList.add('hidden');
+        noStatsMsg.classList.remove('hidden');
+        return;
+      }
+
+      statsContent.classList.remove('hidden');
+      noStatsMsg.classList.add('hidden');
+
+      // 3. Render Øktoversikt (KPI-kort)
+      const totalSessions = filteredSessions.length;
+      const finishedMatches = filteredMatches.length;
+      const avgSessionsPerMatch = finishedMatches > 0 
+        ? (totalSessions / finishedMatches).toFixed(1) 
+        : '0.0';
+
+      const overviewContainer = document.getElementById('sessionOverviewContainer');
+      if (overviewContainer) {
+        overviewContainer.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl text-center">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Økter Totalt</p>
+            <p class="text-xl font-black text-white mt-1">${totalSessions}</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl text-center">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Matcher Totalt</p>
+            <p class="text-xl font-black text-court mt-1">${finishedMatches}</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl text-center">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Økter / Match</p>
+            <p class="text-xl font-black text-purple-400 mt-1">${avgSessionsPerMatch}</p>
+          </div>
+        `;
+      }
+
+      const profiles = getProfilesList();
+      const p1Name = profiles[0].name;
+      const p2Name = profiles[1].name;
+
+      let stats = {
+        1: { name: p1Name, played: 0, won: 0, setsWon: 0, games: 0, points: 0, clutchPlayed: 0, clutchWon: 0, tiebreaksWon: 0 },
+        2: { name: p2Name, played: 0, won: 0, setsWon: 0, games: 0, points: 0, clutchPlayed: 0, clutchWon: 0, tiebreaksWon: 0 }
+      };
+
+      filteredMatches.forEach(m => {
+        const p1G = (m.s1_playerA||0) + (m.s2_playerA||0) + (m.s3_playerA||0);
+        const p2G = (m.s1_playerB||0) + (m.s2_playerB||0) + (m.s3_playerB||0);
+
+        stats[1].games += p1G;
+        stats[2].games += p2G;
+
+        stats[1].points += p1G * 10;
+        stats[2].points += p2G * 10;
+
+        let p1Sets = 0, p2Sets = 0;
+        [
+          [m.s1_playerA, m.s1_playerB],
+          [m.s2_playerA, m.s2_playerB],
+          [m.s3_playerA, m.s3_playerB]
+        ].forEach(([g1, g2]) => {
+          if (g1 > g2) p1Sets++;
+          if (g2 > g1) p2Sets++;
+
+          if ((g1 === 7 && g2 === 6) || (g1 === 6 && g2 === 7)) {
+            if (g1 > g2) stats[1].tiebreaksWon++;
+            else stats[2].tiebreaksWon++;
+          }
+        });
+
+        // Akkumulerer sett totalt for sesongen
+        stats[1].setsWon += p1Sets;
+        stats[2].setsWon += p2Sets;
+
+        stats[1].points += p1Sets * 100;
+        stats[2].points += p2Sets * 100;
+
+        stats[1].played++;
+        stats[2].played++;
+
+        if (m.winner === 1) {
+          stats[1].won++;
+          stats[1].points += 1000;
+        } else if (m.winner === 2) {
+          stats[2].won++;
+          stats[2].points += 1000;
+        }
+
+        if ((m.s3_playerA||0) > 0 || (m.s3_playerB||0) > 0) {
+          stats[1].clutchPlayed++;
+          stats[2].clutchPlayed++;
+          if (m.winner === 1) stats[1].clutchWon++;
+          if (m.winner === 2) stats[2].clutchWon++;
+        }
+      });
+
+      // --- NY KODE FOR BEREGNING AV FORM (SISTE 5 MATCHER) ---
+      const sortedByDate = [...filteredMatches].sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
+
+      function getPlayerForm(playerId) {
+        return sortedByDate
+          .filter(m => m.winner === 1 || m.winner === 2)
+          .slice(-5)
+          .map(m => m.winner === playerId ? 'W' : 'L');
+      }
+
+      const p1Form = getPlayerForm(1);
+      const p2Form = getPlayerForm(2);
+      // ----------------------------------------------------
+
+      const tbody = document.getElementById('rankingTableBody');
+      tbody.innerHTML = '';
+
+      const sortedPlayers = [stats[1], stats[2]].sort((a, b) => b.points - a.points);
+
+      // --- OPPDATERT UTTEGNING AV TABELLEN MED FORM-BADGES ---
+      sortedPlayers.forEach(p => {
+        const winPct = p.played > 0 ? Math.round((p.won / p.played) * 100) : 0;
+        const pForm = p.name === p1Name ? p1Form : p2Form;
+
+        const formHtml = pForm.map(res => `
+          <span class="inline-flex items-center justify-center w-4 h-4 text-[9px] font-black rounded ${
+            res === 'W' 
+              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+          }">${res}</span>
+        `).join('');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2.5 text-white font-bold">
+            <div>${p.name}</div>
+            <div class="flex gap-1 mt-1">${formHtml || '<span class="text-[10px] text-slate-500">-</span>'}</div>
+          </td>
+          <td class="py-2 text-center text-slate-300 align-top">${p.won}/${p.played}</td>
+          <td class="py-2 text-center text-court font-bold align-top">${winPct}%</td>
+          <td class="py-2 text-center text-slate-300 align-top">${p.setsWon}</td>
+          <td class="py-2 text-center text-slate-300 align-top">${p.games}</td>
+          <td class="py-2 text-right text-white font-black align-top">${p.points}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      // -----------------------------------------------------
+
+      const clutchContainer = document.getElementById('clutchStatsContainer');
+      clutchContainer.innerHTML = '';
+      [stats[1], stats[2]].forEach(p => {
+        const cPct = p.clutchPlayed > 0 ? Math.round((p.clutchWon / p.clutchPlayed) * 100) : 0;
+        const div = document.createElement('div');
+        div.className = "bg-slate-800/50 p-3 rounded-xl border border-slate-800 text-center";
+        div.innerHTML = `
+          <p class="text-xs text-slate-400 font-bold mb-1">${p.name}</p>
+          <p class="text-lg font-black text-court">${cPct}% <span class="text-xs font-normal text-slate-400">Set 3 win</span></p>
+          <p class="text-xs text-slate-400 mt-1">${p.tiebreaksWon} tiebreaks vunnet</p>
+        `;
+        clutchContainer.appendChild(div);
+      });
+
+      renderFormChart(filteredMatches, p1Name, p2Name);
+      renderLateChart(season, p1Name, p2Name);
+      renderBeerFund(season, p1Name, p2Name);
+    }
+
+    function renderFormChart(matches, p1Name, p2Name) {
+      const ctx = document.getElementById('formChart').getContext('2d');
+      if (chartFormInstance) chartFormInstance.destroy();
+
+      const sorted = [...matches].sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
+
+      let labels = [];
+      let p1PointsAcc = [];
+      let p2PointsAcc = [];
+
+      let cumP1 = 0;
+      let cumP2 = 0;
+
+      sorted.forEach((m) => {
+        const dateStr = new Date(m.endDate).toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit' });
+        labels.push(dateStr);
+
+        const p1G = (m.s1_playerA||0) + (m.s2_playerA||0) + (m.s3_playerA||0);
+        const p2G = (m.s1_playerB||0) + (m.s2_playerB||0) + (m.s3_playerB||0);
+
+        let p1Pts = p1G * 10 + (m.winner === 1 ? 1000 : 0);
+        let p2Pts = p2G * 10 + (m.winner === 2 ? 1000 : 0);
+
+        cumP1 += p1Pts;
+        cumP2 += p2Pts;
+
+        p1PointsAcc.push(cumP1);
+        p2PointsAcc.push(cumP2);
+      });
+
+      chartFormInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: p1Name, data: p1PointsAcc, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)', tension: 0.3, fill: true },
+            { label: p2Name, data: p2PointsAcc, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, fill: true }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1e293b' } },
+            y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1e293b' } }
+          }
+        }
+      });
+    }
+
+    function renderLateChart(season, p1Name, p2Name) {
+      const ctx = document.getElementById('lateChart').getContext('2d');
+      if (chartLateInstance) chartLateInstance.destroy();
+
+      const filteredSessions = appData.allSessions.filter(s => {
+        if (!s.date) return false;
+        if (season === 'ALL') return true;
+        return new Date(s.date).getFullYear().toString() === season;
+      });
+
+      const months = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Des"];
+      let p1LateByMonth = new Array(12).fill(0);
+      let p2LateByMonth = new Array(12).fill(0);
+
+      filteredSessions.forEach(s => {
+        const m = new Date(s.date).getMonth();
+        if (!isNaN(m)) {
+          p1LateByMonth[m] += parseInt(s.playerALateMinutes || 0);
+          p2LateByMonth[m] += parseInt(s.playerBLateMinutes || 0);
+        }
+      });
+
+      chartLateInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: months,
+          datasets: [
+            { label: p1Name, data: p1LateByMonth, backgroundColor: '#a855f7' },
+            { label: p2Name, data: p2LateByMonth, backgroundColor: '#10b981' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1e293b' } }
+          }
+        }
+      });
+    }
+
+    function renderBeerFund(season, p1Name, p2Name) {
+      const filteredSessions = appData.allSessions.filter(s => {
+        if (!s.date) return false;
+        if (season === 'ALL') return true;
+        return new Date(s.date).getFullYear().toString() === season;
+      });
+
+      let totalP1Min = 0;
+      let totalP2Min = 0;
+
+      filteredSessions.forEach(s => {
+        totalP1Min += parseInt(s.playerALateMinutes || 0);
+        totalP2Min += parseInt(s.playerBLateMinutes || 0);
+      });
+
+      const p1Cost = totalP1Min * 10;
+      const p2Cost = totalP2Min * 10;
+      const totalCost = p1Cost + p2Cost;
+
+      // 1. HENT OG FILTRER ØL-TRANSAKSJONER (UTTAK)
+      const filteredTransactions = (appData.beerTransactions || []).filter(t => {
+        if (!t.transactionDate) return true;
+        if (season === 'ALL') return true;
+        return new Date(t.transactionDate).getFullYear().toString() === season;
+      });
+
+      const totalBeersRedeemed = filteredTransactions.reduce((sum, t) => sum + parseInt(t.beerCount || 0), 0);
+      const totalWithdrawnKr = totalBeersRedeemed * 100;
+
+      // 2. BEREGN DISPONIBEL SUM ETTER UTTAK
+      const netCost = Math.max(0, totalCost - totalWithdrawnKr);
+
+      const p1Share = totalCost > 0 ? Math.round((p1Cost / totalCost) * 100) : 50;
+      const p2Share = totalCost > 0 ? Math.round((p2Cost / totalCost) * 100) : 50;
+
+      const beerContainer = document.getElementById('beerFundDetails');
+      beerContainer.innerHTML = `
+        <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+          <p class="text-xs text-slate-400 font-bold">${p1Name}</p>
+          <p class="text-base font-black text-white mt-0.5">${totalP1Min} min <span class="text-xs text-court">(${p1Cost} kr)</span></p>
+          <p class="text-[10px] text-slate-500 mt-1">${p1Share}% av innskudd</p>
+        </div>
+        <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+          <p class="text-xs text-slate-400 font-bold">${p2Name}</p>
+          <p class="text-base font-black text-white mt-0.5">${totalP2Min} min <span class="text-xs text-court">(${p2Cost} kr)</span></p>
+          <p class="text-[10px] text-slate-500 mt-1">${p2Share}% av innskudd</p>
+        </div>
+      `;
+
+      // 3. UTREGNING AV ØL OG RESTERENDE KRONER TILL NESTE ØL
+      const beers = Math.floor(netCost / 100);
+      const remainder = netCost % 100;
+
+      document.getElementById('beerCountText').textContent = `${beers} øl (${netCost} kr)`;
+      document.getElementById('beerRemainderText').textContent = `${100 - remainder} kr til neste øl`;
+
+      const liquid = document.getElementById('beerLiquid');
+      liquid.style.height = `${remainder}%`;
+
+      // 4. LEGG TIL ELLER OPPDATER "TAPP 1 ØL"-KNAPPEN
+      let redeemBtn = document.getElementById('redeemBeerBtn');
+      if (!redeemBtn) {
+        redeemBtn = document.createElement('button');
+        redeemBtn.id = 'redeemBeerBtn';
+        redeemBtn.onclick = handleRedeemBeer;
+        // Plasserer knappen under "kr til neste øl"
+        document.getElementById('beerRemainderText').after(redeemBtn);
+      }
+
+      if (beers >= 1) {
+        redeemBtn.className = "mt-4 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-xl flex items-center font-semibold transition active:scale-95 shadow-sm cursor-pointer";
+        redeemBtn.innerHTML = `
+          <span>Tapp 1 øl (−100 kr)</span>
+        `;
+        redeemBtn.style.display = 'inline-flex';
+      } else {
+        redeemBtn.style.display = 'none';
+      }
+    }
+
+    function handleRedeemBeer() {
+      const pass = localStorage.getItem('tennis_app_password');
+      if (!pass) {
+        alert("Du må være innlogget for å utføre denne handlingen.");
+        return;
+      }
+
+      if (!confirm("Skål! Bekreft at dere tapper 1 øl fra fondet (-100 kr)?")) return;
+
+      const payload = {
+        action: "redeem_beer",
+        password: pass,
+        date: getLocalDate(),
+        beerCount: 1,
+        note: "Tappet fra app"
+      };
+
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.text())
+      .then(textData => {
+        if (textData.includes("Unauthorized")) {
+          handleUnauthorized();
+          return;
+        }
+
+        try {
+          const data = JSON.parse(textData);
+          if (data.result === "success") {
+            fetchData();
+          } else {
+            alert("Kunne ikke registrere uttak: " + (data.error || "Ukjent feil"));
+          }
+        } catch (e) {
+          // Håndterer tilfeller hvor e.parameter/response returnerer ren tekst
+          fetchData();
+        }
+      })
+      .catch(err => alert("Nettverksfeil ved uttak: " + err));
+    }
+
+    function renderProfiles() {
+      const container = document.getElementById('profilesContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const pKeys = ["PLAYER_1", "PLAYER_2"];
+  
+      pKeys.forEach((pKey, idx) => {
+        const p = (appData.profiles && appData.profiles[pKey]) ? appData.profiles[pKey] : { name: `Spiller ${idx + 1}` };
+        const lastStringedDate = p.stringingDate ? new Date(p.stringingDate) : null;
+    
+        let daysSince = 0;
+        if (lastStringedDate && !isNaN(lastStringedDate)) {
+          const diffTime = Math.abs(new Date() - lastStringedDate);
+          daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        // Telles kun dersom strengedato faktisk eksisterer
+        const sessionsSince = lastStringedDate ? appData.allSessions.filter(s => {
+          if (!s.date) return false;
+          return new Date(s.date) >= lastStringedDate;
+        }).length : 0;
+
+        const showWarning = sessionsSince > 30;
+        const formattedImgUrl = formatDriveImageUrl(p.imageUrl);
+
+        // Tvinger verdiene til å være tekst før .replace kalles
+        const racketText = String(p.currentRacket || '');
+        const stringingText = String(p.stringingTension || '');
+
+        const trophies = getSeasonTrophies(pKey);
+
+        const card = document.createElement('div');
+        card.className = "bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm";
+        card.innerHTML = `
+          <div class="flex items-center space-x-4">
+            <img src="${formattedImgUrl}" alt="${p.name}" class="w-16 h-16 rounded-2xl object-cover border-2 border-court/40 bg-slate-800">
+            <div>
+              <h3 class="text-lg font-bold text-white">${p.name}</h3>
+
+              ${trophies.length > 0 ? `
+                <div class="flex flex-wrap gap-1 mt-1">
+                  ${trophies.map(t => `
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      ${t}
+                    </span>
+                  `).join('')}
+                </div>
+              ` : ''}
+
+              <div class="mt-1 space-y-0.5 text-xs text-slate-400">
+                <p>Racket: <span class="text-slate-200 font-semibold">${p.currentRacket || 'Ikke oppgitt'}</span></p>
+                <p>Strenging: <span class="text-slate-200 font-semibold">${p.stringingTension ? p.stringingTension + (String(p.stringingTension).includes('kg') ? '' : ' kg') : 'Ikke oppgitt'}</span></p>
+              </div>
+
+              <button onclick="updateEquipment('${pKey}', '${racketText.replace(/'/g, "\\'")}', '${stringingText.replace(/'/g, "\\'")}')" 
+                      class="mt-2 inline-flex items-center space-x-1.5 px-2.5 py-1 bg-slate-800 hover:bg-slate-700/80 text-slate-300 text-[11px] font-medium rounded-md border border-slate-700/60 transition active:scale-95 cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400">
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                </svg>
+                <span>Rediger utstyr</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-800 flex items-center justify-between text-xs">
+            <div>
+              <p class="text-slate-400">Siste strenging:</p>
+              <p class="text-white font-bold mt-0.5">${lastStringedDate ? daysSince + ' dager siden (' + sessionsSince + ' økter)' : 'Ingen dato registrert'}</p>
+            </div>
+            <button onclick="updateStringing('${pKey}')" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition active:scale-95">
+              Ny strenging i dag
+            </button>
+          </div>
+
+          ${showWarning ? `
+            <div class="flex items-center justify-center space-x-1.5 text-xs text-amber-400 bg-amber-950/40 border border-amber-800/50 p-2.5 rounded-xl font-medium text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-amber-400">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                <line x1="12" x2="12" y1="9" y2="13"/>
+                <line x1="12" x2="12.01" y1="17" y2="17"/>
+              </svg>
+              <span>Tid for ny strenging? (Over 30 økter siden)</span>
+            </div>
+          ` : ''}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function getSeasonTrophies(playerId) {
+      if (!appData.allMatches || appData.allMatches.length === 0) return [];
+
+      const targetWinnerNum = playerId === 'PLAYER_1' ? 1 : 2;
+      const yearlyWins = {};
+
+      appData.allMatches.forEach(m => {
+        if (!m.endDate || !m.winner) return;
+        const year = new Date(m.endDate).getFullYear();
+        if (isNaN(year)) return;
+
+        if (!yearlyWins[year]) yearlyWins[year] = { 1: 0, 2: 0 };
+    
+        // Støtter både tall (1, 2) og tekst ("1", "2", "PLAYER_1", "PLAYER_2")
+        const w = (m.winner === 1 || m.winner === '1' || m.winner === 'PLAYER_1') ? 1 :
+                  (m.winner === 2 || m.winner === '2' || m.winner === 'PLAYER_2') ? 2 : 0;
+              
+        if (w > 0) {
+          yearlyWins[year][w]++;
+        }
+      });
+
+      const trophies = [];
+      Object.keys(yearlyWins).sort().forEach(year => {
+        const p1 = yearlyWins[year][1];
+        const p2 = yearlyWins[year][2];
+
+        if (targetWinnerNum === 1 && p1 > p2) {
+          trophies.push(`${year} 🏆`);
+        } else if (targetWinnerNum === 2 && p2 > p1) {
+          trophies.push(`${year} 🏆`);
+        }
+      });
+
+      return trophies;
+    }
+  </script>
+</body>
+</html>
